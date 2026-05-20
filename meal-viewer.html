@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meal Planner — Weekly View</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;900&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0B0F;
+    --surface: #141418;
+    --surface2: #1C1C22;
+    --border: #2A2A32;
+    --text: #E8E6E1;
+    --text2: #9B9A97;
+    --text3: #5E5D5A;
+    --indian: #E8723A;
+    --mediterranean: #3A8FE8;
+    --mexican: #E83A5A;
+    --eastasian: #3AE88F;
+    --american: #A85AE8;
+    --accent: #E8C23A;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 30px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 60px;
+    position: relative;
+  }
+
+  .header::before {
+    content: '🍽️';
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+    filter: grayscale(0.2);
+  }
+
+  .header h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: clamp(36px, 5vw, 56px);
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    background: linear-gradient(135deg, var(--text) 0%, var(--text2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .header p {
+    font-size: 16px;
+    color: var(--text3);
+    margin-top: 12px;
+    font-weight: 300;
+    letter-spacing: 0.3px;
+  }
+
+  .header .meta {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .meta-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    letter-spacing: 0.5px;
+  }
+
+  /* File loader */
+  .loader {
+    text-align: center;
+    padding: 80px 20px;
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .loader:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  .loader h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .loader p {
+    color: var(--text3);
+    font-size: 14px;
+  }
+
+  .loader input {
+    display: none;
+  }
+
+  /* Week section */
+  .week-section {
+    margin-bottom: 60px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .week-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .week-header h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+  }
+
+  .week-header .date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .week-header .generated {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  /* Meal type label */
+  .meal-type-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text3);
+    margin-bottom: 16px;
+    margin-top: 8px;
+  }
+
+  /* Meal grid */
+  .meal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  /* Meal card */
+  .meal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .meal-card:hover {
+    border-color: var(--text3);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .meal-card-accent {
+    height: 3px;
+    width: 100%;
+  }
+
+  .meal-card-body {
+    padding: 24px;
+  }
+
+  .meal-card .cuisine-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+
+  .meal-card h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.3;
+    margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+
+  .meal-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat-value {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* Expandable recipe */
+  .recipe-toggle {
+    background: none;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 8px 0;
+    transition: color 0.2s;
+  }
+
+  .recipe-toggle:hover { color: var(--accent); }
+
+  .recipe-section {
+    display: none;
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+    padding-top: 16px;
+  }
+
+  .recipe-section.open { display: block; }
+
+  .recipe-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .ingredient {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .steps {
+    list-style: none;
+  }
+
+  .steps li {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Summary bar */
+  .summary-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .summary-item {
+    text-align: center;
+  }
+
+  .summary-item .value {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--accent);
+  }
+
+  .summary-item .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text3);
+    font-size: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 30px 16px; }
+    .meal-grid { grid-template-columns: 1fr; }
+    .summary-bar { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>Meal Planner</h1>
+    <p>AI-generated weekly meal plans — powered by LangGraph + Claude</p>
+    <div class="meta">
+      <span class="meta-tag">chicken · fish · shrimp</span>
+      <span class="meta-tag">medium spice</span>
+      <span class="meta-tag">3-week rotation</span>
+      <span class="meta-tag">30–60 min</span>
+    </div>
+  </div>
+
+  <div class="loader" id="loader" onclick="document.getElementById('fileInput').click()">
+    <h2>Load your meal plans</h2>
+    <p>Click to select meal_plans.json from your project folder</p>
+    <input type="file" id="fileInput" accept=".json" onchange="loadFile(event)">
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+const cuisineColors = {
+  'Indian': 'var(--indian)',
+  'Mediterranean': 'var(--mediterranean)',
+  'Mexican': 'var(--mexican)',
+  'East Asian': 'var(--eastasian)',
+  'American comfort': 'var(--american)',
+};
+
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      renderPlans(data);
+      document.getElementById('loader').style.display = 'none';
+    } catch(err) {
+      alert('Error reading JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderPlans(plans) {
+  const content = document.getElementById('content');
+
+  // Overall summary
+  const allMeals = plans.flatMap(p => p.meals);
+  const totalProtein = allMeals.reduce((s, m) => s + (m.protein_grams || 0), 0);
+  const avgProtein = allMeals.length ? Math.round(totalProtein / allMeals.length) : 0;
+  const avgCal = allMeals.length ? Math.round(allMeals.reduce((s, m) => s + (m.calories || 0), 0) / allMeals.length) : 0;
+  const cuisines = [...new Set(allMeals.map(m => m.cuisine))];
+
+  let html = `
+    <div class="summary-bar">
+      <div class="summary-item">
+        <div class="value">${plans.length}</div>
+        <div class="label">Weeks planned</div>
+      </div>
+      <div class="summary-item">
+        <div class="value">${allMeals.length}</div>
+        <div class="label">Total meals</div>
+      </div>
+      <div class="summary-item">
+        <div class="value">${avgProtein}g</div>
+        <div class="label">Avg protein</div>
+      </div>
+      <div class="summary-item">
+        <div class="value">${avgCal}</div>
+        <div class="label">Avg calories</div>
+      </div>
+      <div class="summary-item">
+        <div class="value">${cuisines.length}</div>
+        <div class="label">Cuisines</div>
+      </div>
+    </div>
+  `;
+
+  plans.forEach((plan, planIdx) => {
+    const lunches = plan.meals.filter(m => m.type === 'lunch');
+    const dinners = plan.meals.filter(m => m.type === 'dinner');
+
+    html += `
+      <div class="week-section" style="animation-delay: ${planIdx * 0.15}s">
+        <div class="week-header">
+          <h2>Week ${plan.week_number}</h2>
+          <div>
+            <div class="date">${plan.week_starting || ''}</div>
+            <div class="generated">Generated ${plan.generated_on || ''}</div>
+          </div>
+        </div>
+    `;
+
+    if (lunches.length) {
+      html += `<div class="meal-type-label">🍱 Lunch</div>`;
+      html += `<div class="meal-grid">${lunches.map((m, i) => mealCard(m, `${planIdx}-l-${i}`)).join('')}</div>`;
+    }
+
+    if (dinners.length) {
+      html += `<div class="meal-type-label">🍽️ Dinner</div>`;
+      html += `<div class="meal-grid">${dinners.map((m, i) => mealCard(m, `${planIdx}-d-${i}`)).join('')}</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  content.innerHTML = html;
+}
+
+function mealCard(meal, id) {
+  const color = cuisineColors[meal.cuisine] || 'var(--text3)';
+  const ingredients = (meal.ingredients || []).map(i => `<span class="ingredient">${i}</span>`).join('');
+  const steps = (meal.steps || []).map((s, i) => `
+    <li><span class="step-num">${String(i+1).padStart(2,'0')}</span><span>${s}</span></li>
+  `).join('');
+
+  return `
+    <div class="meal-card">
+      <div class="meal-card-accent" style="background: linear-gradient(90deg, ${color}, ${color}44)"></div>
+      <div class="meal-card-body">
+        <div class="cuisine-badge" style="color: ${color}">${meal.cuisine}</div>
+        <h3>${meal.name}</h3>
+        <div class="meal-stats">
+          <div class="stat">🔥 <span class="stat-value">${meal.calories || '?'}</span> cal</div>
+          <div class="stat">💪 <span class="stat-value">${meal.protein_grams || '?'}g</span> protein</div>
+          <div class="stat">⏱ <span class="stat-value">${meal.cook_time_min || '?'}</span> min</div>
+          <div class="stat">🌶 ${meal.spiceLevel || meal.spice_level || 'medium'}</div>
+        </div>
+        <button class="recipe-toggle" onclick="toggleRecipe('${id}')">▸ show recipe</button>
+        <div class="recipe-section" id="recipe-${id}">
+          ${ingredients ? `<div class="recipe-label">Ingredients</div><div class="ingredients">${ingredients}</div>` : ''}
+          ${steps ? `<div class="recipe-label">Steps</div><ul class="steps">${steps}</ul>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleRecipe(id) {
+  const el = document.getElementById('recipe-' + id);
+  const btn = el.previousElementSibling;
+  if (el.classList.contains('open')) {
+    el.classList.remove('open');
+    btn.textContent = '▸ show recipe';
+  } else {
+    el.classList.add('open');
+    btn.textContent = '▾ hide recipe';
+  }
+}
+</script>
+</body>
+</html>
